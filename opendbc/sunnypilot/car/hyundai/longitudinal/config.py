@@ -33,6 +33,16 @@ TUNING_CONFIGS = {
 
 # Car-specific configs
 CAR_SPECIFIC_CONFIGS = {
+  CAR.KIA_EV6: CarTuningConfig(
+    lookahead_jerk_bp=[2., 5., 20.],
+    lookahead_jerk_upper_v=[0.05, 0.05, 0.05],
+    lookahead_jerk_lower_v=[0.05, 0.10, 0.3],
+    jerk_limits=5.0,
+    upper_jerk_v=[5.0, 4.0, 2.5],
+    lower_jerk_v=[1.5, 2.0, 3.2],
+    min_jerk_upper=2.0,
+    min_jerk_lower=1.2,
+  ),
   CAR.KIA_NIRO_EV: CarTuningConfig(
     jerk_limits=3.3,
   ),
