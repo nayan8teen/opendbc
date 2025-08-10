@@ -17,6 +17,10 @@ class CarTuningConfig:
   lookahead_jerk_lower_v: list[float] = field(default_factory=lambda: [0.3, 0.45, 0.6])
   longitudinal_actuator_delay: float = 0.50
   jerk_limits: float = 4.0
+  upper_jerk_v: list[float] = field(default_factory=lambda: [3.0, 3.0, 1.6])
+  lower_jerk_v: list[float] = field(default_factory=lambda: [5.0, 5.0, 3.0])
+  min_jerk_lower: float = 2.0
+  min_jerk_upper: float = 0.5
 
 
 # Default configurations for different car types

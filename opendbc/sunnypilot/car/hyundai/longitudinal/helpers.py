@@ -4,6 +4,9 @@ Copyright (c) 2021-, Haibin Wen, sunnypilot, and a number of other contributors.
 This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
+
+import numpy as np
+
 from opendbc.car import structs, DT_CTRL, rate_limit
 from opendbc.sunnypilot.car.hyundai.longitudinal.config import CarTuningConfig, TUNING_CONFIGS, CAR_SPECIFIC_CONFIGS
 
@@ -39,3 +42,14 @@ def jerk_limited_integrator(desired_accel, last_accel, jerk_upper, jerk_lower) -
     val = jerk_lower * DT_CTRL * 5
 
   return rate_limit(desired_accel, last_accel, -val, val)
+
+
+def ramp_update(current, target, min_value=None):
+  error = target - current
+  if abs(error) > JERK_THRESHOLD:
+    next_val = current + float(np.clip(error, -JERK_STEP, JERK_STEP))
+  else:
+    next_val = target
+  if min_value is not None:
+    next_val = max(min_value, next_val)
+  return next_val
