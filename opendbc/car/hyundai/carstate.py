@@ -325,10 +325,10 @@ class CarState(CarStateBase, EsccCarStateBase, MadsCarState, CarStateExt):
       ]
 
     cam_messages = []
-    if CP.flags & HyundaiFlags.CANFD_CAMERA_SCC:
-      cam_messages += [
-        ("FR_CMR_03_50ms", 20),
-      ]
+    # if CP.flags & HyundaiFlags.CANFD_CAMERA_SCC:
+    #   cam_messages += [
+    #     ("FR_CMR_03_50ms", 20),
+    #   ]
 
     return {
       Bus.pt: CANParser(DBC[CP.carFingerprint][Bus.pt], msgs, CanBus(CP).ECAN),
