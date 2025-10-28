@@ -317,12 +317,12 @@ class CarState(CarStateBase, EsccCarStateBase, MadsCarState, CarStateExt):
 
   def get_can_parsers_canfd(self, CP):
     msgs = []
-    if not (CP.flags & HyundaiFlags.CANFD_ALT_BUTTONS):
-      # TODO: this can be removed once we add dynamic support to vl_all
-      msgs += [
-        # this message is 50Hz but the ECU frequently stops transmitting for ~0.5s
-        ("CRUISE_BUTTONS", 1)
-      ]
+    btn_msg = "CRUISE_BUTTONS_ALT" if CP.flags & HyundaiFlags.CANFD_ALT_BUTTONS else "CRUISE_BUTTONS"
+    # TODO: this can be removed once we add dynamic support to vl_all
+    msgs += [
+      # this message is 50Hz but the ECU frequently stops transmitting for ~0.5s
+      (btn_msg, 1)
+    ]
 
     cam_messages = []
     # if CP.flags & HyundaiFlags.CANFD_CAMERA_SCC:
