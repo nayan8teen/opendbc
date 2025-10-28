@@ -2041,6 +2041,16 @@
     ],
     "package": "Smart Cruise Control (SCC)"
   },
+  "Kia Carnival Hybrid (HDA II) 2026": {
+    "platform": "KIA_CARNIVAL_HEV_2026",
+    "make": "Kia",
+    "brand": "hyundai",
+    "model": "Carnival Hybrid (HDA II)",
+    "year": [
+      "2026"
+    ],
+    "package": "Highway Driving Assist II"
+  },
   "Kia Ceed 2019-21": {
     "platform": "KIA_CEED",
     "make": "Kia",
