@@ -43,6 +43,12 @@ class CarControllerParams:
         self.STEER_DELTA_UP_LOOKUP = [8, 16, 20], [6, 3, 2]
         self.STEER_DELTA_DOWN_LOOKUP = [8, 16, 20], [6, 4, 3]
 
+      elif CP.carFingerprint in (CAR.KIA_CARNIVAL_HEV_2026):
+        self.DYNAMIC_MAX_TORQUE = True
+        self.STEER_MAX_LOOKUP = [10, 16], [380, 310]
+        self.STEER_DELTA_UP_LOOKUP = [10, 16], [2, 2]
+        self.STEER_DELTA_DOWN_LOOKUP = [10, 16], [6, 5]
+
     # To determine the limit for your car, find the maximum value that the stock LKAS will request.
     # If the max stock LKAS request is <384, add your car to this list.
     elif CP.carFingerprint in (CAR.GENESIS_G80, CAR.HYUNDAI_ELANTRA, CAR.HYUNDAI_ELANTRA_GT_I30, CAR.HYUNDAI_IONIQ,
@@ -594,8 +600,8 @@ class CAR(Platforms):
     [
       HyundaiCarDocs("Kia Carnival Hybrid (with HDA II) 2026", "Highway Driving Assist II", car_parts=CarParts.common([CarHarness.hyundai_q])),
     ],
-    CarSpecs(mass=2350, wheelbase=3.09, steerRatio=17.8, tireStiffnessFactor=0.993),
-    flags=HyundaiFlags.HYBRID | HyundaiFlags.CANFD_RADAR_SCC,
+    CarSpecs(mass=2350, wheelbase=3.09, steerRatio=17.6, tireStiffnessFactor=0.993),
+    flags=HyundaiFlags.HYBRID | HyundaiFlags.CANFD_RADAR_SCC
   )
 
   # Genesis
