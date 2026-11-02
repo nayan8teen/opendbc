@@ -244,6 +244,32 @@ static safety_config hyundai_canfd_init(uint16_t param) {
     {0x200, 1,  8, .check_relay = false},  // ADRV_0x200
     {0x345, 1,  8, .check_relay = false},  // ADRV_0x345
     {0x1DA, 1, 32, .check_relay = false},  // ADRV_0x1da
+    {0x0CB, 1, 24, .check_relay = false},  // LFA_ALT
+    {0x1BA, 1, 24, .check_relay = false},  // ADAS_CMD_50_50ms
+    {0x1E5, 1, 16, .check_relay = false},  // BLINDSPOTS_FRONT_CORNER_1
+    {0x161, 1, 32, .check_relay = false},  // CCNC_0x161
+    {0x162, 1, 32, .check_relay = false},  // CCNC_0x162
+    {0x38C, 1, 32, .check_relay = false},  // ADRV_0x38c
+  };
+
+  // LKA steering cars that use the alt messages (LKAS_ALT / CAM_0x362 / CRUISE_BUTTONS_ALT)
+  // also need those in the TX table once longitudinal control disables the ADAS ECU.
+  static const CanMsg HYUNDAI_CANFD_LKA_STEER_MSG_ALT_LONG_TX_MSGS[] = {
+    HYUNDAI_CANFD_LKA_STEER_MSG_ALT_COMMON_TX_MSGS(0, 1)
+    HYUNDAI_CANFD_LFA_STEERING_COMMON_TX_MSGS(1)
+    HYUNDAI_CANFD_SCC_CONTROL_COMMON_TX_MSGS(1, true)
+    {0x51,  0, 32, .check_relay = false},  // ADRV_0x51
+    {0x730, 1,  8, .check_relay = false},  // tester present for ADAS ECU disable
+    {0x160, 1, 16, .check_relay = false},  // ADRV_0x160
+    {0x1EA, 1, 32, .check_relay = false},  // ADRV_0x1ea
+    {0x200, 1,  8, .check_relay = false},  // ADRV_0x200
+    {0x345, 1,  8, .check_relay = false},  // ADRV_0x345
+    {0x1DA, 1, 32, .check_relay = false},  // ADRV_0x1da
+    {0x1BA, 1, 24, .check_relay = false},  // ADAS_CMD_50_50ms
+    {0x1E5, 1, 16, .check_relay = false},  // BLINDSPOTS_FRONT_CORNER_1
+    {0x161, 1, 32, .check_relay = false},  // CCNC_0x161
+    {0x162, 1, 32, .check_relay = false},  // CCNC_0x162
+    {0x38C, 1, 32, .check_relay = false},  // ADRV_0x38c
   };
 
   static const CanMsg HYUNDAI_CANFD_LFA_STEERING_TX_MSGS[] = {
@@ -280,11 +306,27 @@ static safety_config hyundai_canfd_init(uint16_t param) {
   safety_config ret;
   if (hyundai_longitudinal) {
     if (hyundai_canfd_lka_steer_msg) {
-      static RxCheck hyundai_canfd_lka_steer_msg_long_rx_checks[] = {
-        HYUNDAI_CANFD_STD_BUTTONS_RX_CHECKS(1)
-      };
+      if (hyundai_canfd_alt_buttons) {
+          static RxCheck hyundai_canfd_alt_buttons_long_rx_checks[] = {
+            HYUNDAI_CANFD_ALT_BUTTONS_RX_CHECKS(1)
+          };
+          if (hyundai_canfd_lka_steer_msg_alt) {
+            ret = BUILD_SAFETY_CFG(hyundai_canfd_alt_buttons_long_rx_checks, HYUNDAI_CANFD_LKA_STEER_MSG_ALT_LONG_TX_MSGS);
+          } else {
+            ret = BUILD_SAFETY_CFG(hyundai_canfd_alt_buttons_long_rx_checks, HYUNDAI_CANFD_LKA_STEER_MSG_LONG_TX_MSGS);
+          }
+      }
+      else {
+          static RxCheck hyundai_canfd_lka_steer_msg_long_rx_checks[] = {
+            HYUNDAI_CANFD_STD_BUTTONS_RX_CHECKS(1)
+          };
 
-      ret = BUILD_SAFETY_CFG(hyundai_canfd_lka_steer_msg_long_rx_checks, HYUNDAI_CANFD_LKA_STEER_MSG_LONG_TX_MSGS);
+          if (hyundai_canfd_lka_steer_msg_alt) {
+            ret = BUILD_SAFETY_CFG(hyundai_canfd_lka_steer_msg_long_rx_checks, HYUNDAI_CANFD_LKA_STEER_MSG_ALT_LONG_TX_MSGS);
+          } else {
+            ret = BUILD_SAFETY_CFG(hyundai_canfd_lka_steer_msg_long_rx_checks, HYUNDAI_CANFD_LKA_STEER_MSG_LONG_TX_MSGS);
+          }
+      }
     } else {
       // Longitudinal checks for LFA steering
       static RxCheck hyundai_canfd_long_rx_checks[] = {
