@@ -46,7 +46,8 @@ class CarInterface(CarInterfaceBase):
         # this needs to be figured out for cars without an ADAS ECU
         ret.alphaLongitudinalAvailable = False
 
-      if 0x1ba in fingerprint[CAN.ECAN]:
+      lka_steering_long = lka_steering and alpha_long and ret.alphaLongitudinalAvailable
+      if 0x1ba in fingerprint[CAN.ECAN] and not lka_steering_long:
         ret.flags |= HyundaiFlags.HAS_BSM.value
 
       # Check if the car is hybrid. Only HEV/PHEV cars have 0xFA on E-CAN.
