@@ -112,9 +112,7 @@ class CcncCarController:
       can_sends.append(create_ccnc_buttons(self.packer, self.CAN, CS.cruise_buttons_msg, press_main))
 
     if self.frame % 5 == 0:
-      lat_active = self.mads.lat_active if self.mads.enable_mads else CC.enabled
-      paused = self.mads.enable_mads and self.mads.paused
-      set_speed = self._get_set_speed(CS.out.vCruiseCluster, CS.is_metric)
+      lat_active, paused, set_speed = cluster_state(CS, CC, self.mads)
       can_sends.append(create_ccnc_0x161(self.packer, self.CAN, CS.msg_161, CC.enabled, lat_active, paused,
                                          self.CP.openpilotLongitudinalControl, CS.main_cruise_enabled,
                                          CC.hudControl, set_speed))
@@ -122,3 +120,10 @@ class CcncCarController:
                                          self.CP.openpilotLongitudinalControl, CC.hudControl, self.lead_distance))
 
     return can_sends
+
+
+def cluster_state(CS, CC, mads):
+  """Lateral state and cluster set speed the CCNC cluster messages should show."""
+  lat_active = mads.lat_active if mads.enable_mads else CC.enabled
+  paused = mads.enable_mads and mads.paused
+  return lat_active, paused, CcncCarController._get_set_speed(CS.out.vCruiseCluster, CS.is_metric)

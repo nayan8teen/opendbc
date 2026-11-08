@@ -2,6 +2,7 @@ import numpy as np
 from opendbc.car import CanBusBase
 from opendbc.car.crc import CRC16_XMODEM
 from opendbc.car.hyundai.values import HyundaiFlags
+from opendbc.sunnypilot.car.hyundai.ccnc import cluster_state, create_ccnc_0x161, create_ccnc_0x162
 from opendbc.sunnypilot.car.hyundai.lead_data_ext import CanFdLeadData
 
 
@@ -172,10 +173,12 @@ def create_acc_control(packer, CAN, enabled, accel_last, accel, gas_override, se
   return packer.make_can_msg("SCC_CONTROL", CAN.ECAN, values)
 
 
-def create_hda2_cluster(packer, CAN, lfa_icon, left_blinker, right_blinker, hud_control, lead_data: CanFdLeadData, out):
+def create_hda2_cluster(packer, CAN, lfa_icon, left_blinker, right_blinker, hud_control, lead_data: CanFdLeadData, out,
+                        stock: dict[str, float] | None = None):
   curvature = int(out.steeringAngleDeg / 2)
 
-  values = {
+  values = dict(stock) if stock else {}
+  values.update({
     "HDA_LCFuncOptUsmSta": 2,
     "HDA_LCFuncSta": 3 if left_blinker or right_blinker else lfa_icon,
     "HDA_LCTurnSigReq": 1 if (left_blinker and not out.leftBlindspot) else 2 if (right_blinker and not out.rightBlindspot) else 0,
@@ -188,7 +191,7 @@ def create_hda2_cluster(packer, CAN, lfa_icon, left_blinker, right_blinker, hud_
     "HDA_RtLineLatPos": lead_data.right_laneline,
     "HDA_LaneCvrtLvlVal": min(abs(curvature), 14) + (-1 if curvature < 0 else 0),
     "HDA_LaneCvrtDir": 1 if curvature < 0 else 0,
-  }
+  })
 
   return packer.make_can_msg("ADRV_0x1ea", CAN.ECAN, values)
 
@@ -251,8 +254,8 @@ _ADAS_DRV_PERIODS = {
 }
 
 
-def _create_adas_drv_spoof(address, bus, counter):
-  d = bytearray(_ADAS_DRV_TEMPLATES[address])
+def _stamp_adas_drv(address, bus, counter, dat):
+  d = bytearray(dat)
   d[2] = counter & 0xFF
   crc = hkg_can_fd_checksum(address, None, d)
   d[0] = crc & 0xFF
@@ -260,15 +263,51 @@ def _create_adas_drv_spoof(address, bus, counter):
   return (address, bytes(d), bus)
 
 
-def create_adas_drv_messages(packer, CAN, frame):
+_ADAS_DRV_STOCK: dict[int, dict[str, float]] = {}
+
+
+def _adas_drv_stock(address: int) -> dict[str, float]:
+  """The captured ADAS DRV frame for this address, decoded into DBC signal values."""
+  if address not in _ADAS_DRV_STOCK:
+    from opendbc.can.parser import CANParser
+
+    stamped = _stamp_adas_drv(address, 0, 0, _ADAS_DRV_TEMPLATES[address])[1]
+    parser = CANParser("hyundai_canfd_generated", [(address, None)], 0)
+    parser.update([0, [(address, stamped, 0)]])
+    _ADAS_DRV_STOCK[address] = dict(parser.vl[address])
+  return dict(_ADAS_DRV_STOCK[address])
+
+
+def _create_adas_drv_spoof(address, bus, counter):
+  return _stamp_adas_drv(address, bus, counter, _ADAS_DRV_TEMPLATES[address])
+
+
+def create_adas_drv_messages(packer, CAN, frame, *, cs, cc, mads, lead_data, lead_distance, lfa_icon):
   ret = [packer.make_can_msg("ADRV_0x51", CAN.ACAN, {})]
+
   for addr, period in _ADAS_DRV_PERIODS.items():
-    if frame % period == 0:
-      ret.append(_create_adas_drv_spoof(addr, CAN.ECAN, frame // period))
+    if frame % period != 0:
+      continue
+    counter = frame // period
+    if addr == 0x1EA:
+      dat = create_hda2_cluster(packer, CAN, lfa_icon, cc.leftBlinker, cc.rightBlinker, cc.hudControl, lead_data, cs.out,
+                                stock=_adas_drv_stock(addr))[1]
+      ret.append(_stamp_adas_drv(addr, CAN.ECAN, counter, dat))
+    else:
+      ret.append(_create_adas_drv_spoof(addr, CAN.ECAN, counter))
+
   if frame % 5 == 0:
     counter = frame // 5
-    for addr in (0x161, 0x162, 0x1BA, 0x1E5):
+    lat_active, paused, set_speed = cluster_state(cs, cc, mads)
+    cluster_msgs = (
+      create_ccnc_0x161(packer, CAN, _adas_drv_stock(0x161), cc.enabled, lat_active, paused, True,
+                        cs.main_cruise_enabled, cc.hudControl, set_speed),
+      create_ccnc_0x162(packer, CAN, _adas_drv_stock(0x162), cc.enabled, True, cc.hudControl, lead_distance),
+    )
+    ret.extend(_stamp_adas_drv(addr, CAN.ECAN, counter, dat) for addr, dat, _ in cluster_msgs)
+    for addr in (0x1BA, 0x1E5):
       ret.append(_create_adas_drv_spoof(addr, CAN.ECAN, counter))
+
   return ret
 
 
