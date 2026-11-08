@@ -174,19 +174,18 @@ def create_acc_control(packer, CAN, enabled, accel_last, accel, gas_override, se
 
 
 def create_hda2_cluster(packer, CAN, lfa_icon, left_blinker, right_blinker, hud_control, lead_data: CanFdLeadData, out,
-                        stock: dict[str, float] | None = None):
+                        stock: dict[str, float] | None = None, lat_active: bool = False):
   curvature = int(out.steeringAngleDeg / 2)
+  lc_active = lat_active and (left_blinker or right_blinker)
 
   values = dict(stock) if stock else {}
   values.update({
-    "HDA_LCFuncOptUsmSta": 2,
-    "HDA_LCFuncSta": 3 if left_blinker or right_blinker else lfa_icon,
-    "HDA_LCTurnSigReq": 1 if (left_blinker and not out.leftBlindspot) else 2 if (right_blinker and not out.rightBlindspot) else 0,
-    "HDA_PathSta": 4 if (right_blinker and not out.rightBlindspot)
-                    else 3 if (left_blinker and not out.leftBlindspot)
-                    else 2 if right_blinker else 1 if left_blinker else 0,
-    "HDA_LtLCAvailSta": 0 if not left_blinker else 2 if hud_control.leftLaneDepart else 1, # TODO: 2 when lane change in progress
-    "HDA_RtLCAvailSta": 0 if not right_blinker else 2 if hud_control.rightLaneDepart else 1, # TODO: 2 when lane change in progress
+    "HDA_LCFuncSta": 3 if lc_active else lfa_icon,
+    "HDA_PathSta": 4 if (lc_active and right_blinker and not out.rightBlindspot)
+                    else 3 if (lc_active and left_blinker and not out.leftBlindspot)
+                    else 2 if (lc_active and right_blinker) else 1 if (lc_active and left_blinker) else 0,
+    "HDA_LtLCAvailSta": 0 if not (lat_active and left_blinker) else 2 if hud_control.leftLaneDepart else 1, # TODO: 2 when lane change in progress
+    "HDA_RtLCAvailSta": 0 if not (lat_active and right_blinker) else 2 if hud_control.rightLaneDepart else 1, # TODO: 2 when lane change in progress
     "HDA_LtLineLatPos": lead_data.left_laneline,
     "HDA_RtLineLatPos": lead_data.right_laneline,
     "HDA_LaneCvrtLvlVal": min(abs(curvature), 14) + (-1 if curvature < 0 else 0),
@@ -285,20 +284,21 @@ def _create_adas_drv_spoof(address, bus, counter):
 def create_adas_drv_messages(packer, CAN, frame, *, cs, cc, mads, lead_data, lead_distance, lfa_icon):
   ret = [packer.make_can_msg("ADRV_0x51", CAN.ACAN, {})]
 
+  lat_active, paused, set_speed = cluster_state(cs, cc, mads)
+
   for addr, period in _ADAS_DRV_PERIODS.items():
     if frame % period != 0:
       continue
     counter = frame // period
     if addr == 0x1EA:
-      dat = create_hda2_cluster(packer, CAN, lfa_icon, cc.leftBlinker, cc.rightBlinker, cc.hudControl, lead_data, cs.out,
-                                stock=_adas_drv_stock(addr))[1]
+      dat = create_hda2_cluster(packer, CAN, lfa_icon, cs.out.leftBlinker, cs.out.rightBlinker, cc.hudControl, lead_data,
+                                cs.out, stock=_adas_drv_stock(addr), lat_active=lat_active)[1]
       ret.append(_stamp_adas_drv(addr, CAN.ECAN, counter, dat))
     else:
       ret.append(_create_adas_drv_spoof(addr, CAN.ECAN, counter))
 
   if frame % 5 == 0:
     counter = frame // 5
-    lat_active, paused, set_speed = cluster_state(cs, cc, mads)
     cluster_msgs = (
       create_ccnc_0x161(packer, CAN, _adas_drv_stock(0x161), cc.enabled, lat_active, paused, True,
                         cs.main_cruise_enabled, cc.hudControl, set_speed),
